@@ -1,6 +1,7 @@
 import ether from '../helpers/ether';
 import { duration } from '../helpers/increaseTime';
 import latestTime from '../helpers/latestTime';
+import EVMRevert from '../helpers/EVMRevert';
 
 const BigNumber = web3.BigNumber;
 
@@ -10,24 +11,44 @@ require('chai')
   .should();
 
 const CarboneumToken = artifacts.require('CarboneumToken');
-const C8split = artifacts.require('C8split');
+const C8splitMany = artifacts.require('C8split_many');
 
-contract('C8split', function ([_, admin, a, b, c]) {
+contract('C8split_many', function ([_, admin, a, b, c]) {
   beforeEach(async function () {
     const unlockDate = latestTime() + duration.seconds(100);
 
     this.token = await CarboneumToken.new({ from: a });
 
-    this.split = await C8split.new(b, c, admin, this.token.address, unlockDate, { from: admin });
+    this.split = await C8splitMany.new(admin, this.token.address, unlockDate, { from: admin });
     await this.token.approve(this.split.address, ether(20000), { from: a });
     await this.token.approve(this.split.address, ether(20000), { from: admin });
   });
 
   describe('split', function () {
     it('should split.', async function () {
+      await this.split.addNewUser(b, { from: admin });
+      await this.split.addNewUser(c, { from: admin });
       await this.split.split(ether(10000), { from: a });
-      let bBalance = await this.split.getBalance1();
-      let cBalance = await this.split.getBalance2();
+      let bBalance = await this.split.getBalance({ from: b });
+      let cBalance = await this.split.getBalance({ from: c });
+
+      let testBalanceB = await this.token.balanceOf(b);
+
+      let adminBalance = await this.token.balanceOf(admin);
+      adminBalance.should.be.bignumber.equal(ether(10000));
+      cBalance.should.be.bignumber.equal(bBalance);
+      cBalance.should.be.bignumber.equal(ether(5000));
+      bBalance.should.be.bignumber.equal(ether(5000));
+
+      testBalanceB.should.be.bignumber.equal(ether(0));
+    });
+
+    it('should split.', async function () {
+      await this.split.addNewUser(b, { from: admin });
+      await this.split.addNewUser(c, { from: admin });
+      await this.split.split(ether(10000), { from: a });
+      let bBalance = await this.split.getBalance({ from: b });
+      let cBalance = await this.split.getBalance({ from: c });
 
       let testBalanceB = await this.token.balanceOf(b);
 
@@ -41,6 +62,8 @@ contract('C8split', function ([_, admin, a, b, c]) {
     });
 
     it('should can withdraw.', async function () {
+      await this.split.addNewUser(b, { from: admin });
+      await this.split.addNewUser(c, { from: admin });
       await this.split.split(ether(10000), { from: a });
       await this.split.withdraw({ from: b });
       await this.split.withdraw({ from: c });
@@ -51,6 +74,8 @@ contract('C8split', function ([_, admin, a, b, c]) {
     });
 
     it('B withdraw, C do not.', async function () {
+      await this.split.addNewUser(b, { from: admin });
+      await this.split.addNewUser(c, { from: admin });
       await this.split.split(ether(10000), { from: a });
       await this.split.withdraw({ from: b });
       let bBalance = await this.token.balanceOf(b);
@@ -60,6 +85,8 @@ contract('C8split', function ([_, admin, a, b, c]) {
     });
 
     it('B withdraw, C do not. then A transfer more.', async function () {
+      await this.split.addNewUser(b, { from: admin });
+      await this.split.addNewUser(c, { from: admin });
       await this.split.split(ether(10000), { from: a });
       await this.split.withdraw({ from: b });
       let bBalance = await this.token.balanceOf(b);
@@ -74,10 +101,14 @@ contract('C8split', function ([_, admin, a, b, c]) {
       testBalanceB.should.be.bignumber.equal(ether(10000));
       testBalanceC.should.be.bignumber.equal(ether(0));
 
-      let bBalance2 = await this.split.getBalance1();
-      let cBalance2 = await this.split.getBalance2();
+      let bBalance2 = await this.split.getBalance({ from: b });
+      let cBalance2 = await this.split.getBalance({ from: c });
       bBalance2.should.be.bignumber.equal(ether(0));
       cBalance2.should.be.bignumber.equal(ether(10000));
+    });
+
+    it('should not split if do not have any receiver.', async function () {
+      await this.split.split(ether(10000), { from: a }).should.be.rejectedWith(EVMRevert);
     });
   });
 });
