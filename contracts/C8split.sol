@@ -19,15 +19,20 @@ import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 contract C8split_many is Ownable {
   ERC20 token;
 
+  struct balanceDetails {
+    uint balanceAmount;
+    uint createDate;
+    uint unlockDate;
+
+  }
+
   address admin;
   address[] public addressIndices;
-  mapping(address => uint256) public balances;
-  uint unlockDate;
+  mapping(address => balanceDetails) public balances;
 
-  constructor(address _admin, ERC20 _token, uint _unlockDate) public {
+  constructor(address _admin, ERC20 _token) public {
     admin = _admin;
     token = _token;
-    unlockDate = _unlockDate;
   }
 
   function split(uint256 _value) public {
@@ -35,15 +40,15 @@ contract C8split_many is Ownable {
     require(arrayLength > 0);
     uint256 amountSplit = _value / arrayLength;
     for (uint i = 0; i < arrayLength; i++) {
-      balances[addressIndices[i]] += amountSplit;
+      balances[addressIndices[i]].balanceAmount += amountSplit;
     }
     require(token.transferFrom(msg.sender, admin, _value));
   }
 
   function withdraw() public {
-    if (balances[msg.sender] > 0) {
-      uint256 balance_temp = balances[msg.sender];
-      balances[msg.sender] = 0;
+    if (balances[msg.sender].balanceAmount > 0 && now > balances[msg.sender].unlockDate) {
+      uint256 balance_temp = balances[msg.sender].balanceAmount;
+      balances[msg.sender].balanceAmount = 0;
       require(token.transferFrom(admin, msg.sender, balance_temp));
     } else {
       revert();
@@ -51,12 +56,17 @@ contract C8split_many is Ownable {
   }
 
   function getBalance() public view returns (uint256){
-    return balances[msg.sender];
+    return balances[msg.sender].balanceAmount;
   }
 
   function addNewUser(address _address) public onlyOwner {
     addressIndices.push(_address);
+    balances[_address].createDate = now;
+    balances[_address].unlockDate = now + 7 days;
+  }
 
+  function getUnlockDate(address _address) public view returns(uint256){
+    return balances[_address].unlockDate;
   }
 
 
