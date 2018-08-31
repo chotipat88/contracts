@@ -18,6 +18,7 @@ import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 contract C8split_many is Ownable {
   ERC20 token;
+  uint delay;
 
   struct balanceDetails {
     uint balanceAmount;
@@ -30,9 +31,11 @@ contract C8split_many is Ownable {
   address[] public addressIndices;
   mapping(address => balanceDetails) public balances;
 
-  constructor(address _admin, ERC20 _token) public {
+  constructor(address _admin, ERC20 _token, uint _delay) public {
     admin = _admin;
     token = _token;
+
+    delay = _delay;
   }
 
   function split(uint256 _value) public {
@@ -62,7 +65,7 @@ contract C8split_many is Ownable {
   function addNewUser(address _address) public onlyOwner {
     addressIndices.push(_address);
     balances[_address].createDate = now;
-    balances[_address].unlockDate = now + 7 days;
+    balances[_address].unlockDate = now + delay;
   }
 
   function getUnlockDate(address _address) public view returns(uint256){

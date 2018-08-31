@@ -17,7 +17,7 @@ contract('C8split_many', function ([_, admin, a, b, c, d]) {
   beforeEach(async function () {
     this.token = await CarboneumToken.new({ from: a });
 
-    this.split = await C8splitMany.new(admin, this.token.address, { from: admin });
+    this.split = await C8splitMany.new(admin, this.token.address, 7 * 24 * 60 * 60, { from: admin });
     await this.token.approve(this.split.address, ether(200000), { from: a });
     await this.token.approve(this.split.address, ether(200000), { from: admin });
   });
@@ -72,7 +72,6 @@ contract('C8split_many', function ([_, admin, a, b, c, d]) {
     });
 
     it('B withdraw, C do not.', async function () {
-
       await this.split.addNewUser(b, { from: admin });
       await this.split.addNewUser(c, { from: admin });
       await this.split.split(ether(10000), { from: a });
@@ -86,7 +85,6 @@ contract('C8split_many', function ([_, admin, a, b, c, d]) {
     });
 
     it('B withdraw, C do not. then A transfer more.', async function () {
-
       await this.split.addNewUser(b, { from: admin });
       await this.split.addNewUser(c, { from: admin });
       await this.split.split(ether(10000), { from: a });
@@ -112,7 +110,6 @@ contract('C8split_many', function ([_, admin, a, b, c, d]) {
     });
 
     it('3 address receiver', async function () {
-
       await this.split.addNewUser(b, { from: admin });
       await this.split.addNewUser(c, { from: admin });
       await this.split.addNewUser(d, { from: admin });
@@ -130,8 +127,15 @@ contract('C8split_many', function ([_, admin, a, b, c, d]) {
       dBalance.should.be.bignumber.equal(ether(10000));
     });
 
+    it('Can not be able to withdraw if admin have not split yet.', async function () {
+      await this.split.addNewUser(b, { from: admin });
+      await this.split.withdraw({ from: b }).should.be.rejectedWith(EVMRevert);
+    });
+
     it('Can not be able to withdraw before added 7 days.', async function () {
       await this.split.addNewUser(b, { from: admin });
+      await this.split.split(ether(30000), { from: a });
+      await increaseTimeTo(latestTime() + duration.days(6) + duration.seconds(86000));
       await this.split.withdraw({ from: b }).should.be.rejectedWith(EVMRevert);
     });
 
